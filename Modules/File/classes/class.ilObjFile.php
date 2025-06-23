@@ -304,9 +304,9 @@ class ilObjFile extends ilObject2 implements ilObjFileImplementationInterface
         return $this->implementation->getFileType();
     }
 
-    public function setFileType(string $a_type): void
+    public function setFileType($a_type)
     {
-        throw new LogicException('cannot change filetype');
+        $this->filetype = $a_type;
     }
 
     public function hasRating(): bool

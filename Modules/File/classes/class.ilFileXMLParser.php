@@ -271,10 +271,10 @@ class ilFileXMLParser extends ilSaxParser
                 } // end-patch fm
                 else { 
                     $log->write(__METHOD__ . ': Mode is not COPY or REST, decoding base64');
-                    if (!$this->fastBase64Decode($this->tmpFilename, $baseDecodedFilename)) {
-                        $log->write(__METHOD__ . ': Base64-Decoding failed');
-                        throw new ilFileException("Base64-Decoding failed", ilFileException::$DECOMPRESSION_FAILED);
-                    }
+                    // if (!$this->fastBase64Decode($this->tmpFilename, $baseDecodedFilename)) {
+                    //     $log->write(__METHOD__ . ': Base64-Decoding failed');
+                    //     throw new ilFileException("Base64-Decoding failed", ilFileException::$DECOMPRESSION_FAILED);
+                    // }
                     if ($this->mode == ilFileXMLParser::$CONTENT_GZ_COMPRESSED) {
                         $log->write(__METHOD__ . ': Mode is GZ_COMPRESSED, gunzipping');
                         if (!$this->fastGunzip($baseDecodedFilename, $this->tmpFilename)) {
