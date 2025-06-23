@@ -210,89 +210,116 @@ class ilFileXMLParser extends ilSaxParser
     {
         $this->cdata = trim($this->cdata);
 
-        $GLOBALS['DIC']['ilLog']->write(__METHOD__ . ': ' . $this->cdata);
+        $log = $GLOBALS['DIC']['ilLog'];
+        $log->write(__METHOD__ . ': End tag "' . $a_name . '" with cdata: ' . $this->cdata);
 
         switch ($a_name) {
             case 'File':
+                $log->write(__METHOD__ . ': Setting result to true for File tag');
                 $this->result = true;
                 break;
             case 'Filename':
+                $log->write(__METHOD__ . ': Handling Filename tag');
                 if ($this->cdata === '') {
+                    $log->write(__METHOD__ . ': Filename is missing, throwing exception');
                     throw new ilFileException("Filename ist missing!");
                 }
 
+                $log->write(__METHOD__ . ': Setting filename and title to "' . $this->cdata . '"');
                 $this->file->setFilename($this->cdata);
                 $this->file->setTitle($this->cdata);
 
                 break;
             case 'Title':
+                $log->write(__METHOD__ . ': Setting title to "' . trim($this->cdata) . '"');
                 $this->file->setTitle(trim($this->cdata));
                 break;
             case 'Description':
+                $log->write(__METHOD__ . ': Setting description to "' . trim($this->cdata) . '"');
                 $this->file->setDescription(trim($this->cdata));
                 break;
             case 'Rating':
+                $log->write(__METHOD__ . ': Setting rating to "' . ((bool) $this->cdata ? 'true' : 'false') . '"');
                 $this->file->setRating((bool) $this->cdata);
                 break;
             case 'Content': // Old import files
             case 'Version':
+                $log->write(__METHOD__ . ': Handling Content/Version tag');
                 if ($a_name === "Version" && $this->version === null) {
-                    // Old import files
+                    $log->write(__METHOD__ . ': Old import file, version is null, skipping');
                     break;
                 }
 
                 $baseDecodedFilename = ilFileUtils::ilTempnam();
+                $log->write(__METHOD__ . ': Generated temp filename: ' . $baseDecodedFilename);
+
                 if ($this->mode == ilFileXMLParser::$CONTENT_COPY) {
                     $this->tmpFilename = $this->getImportDirectory() . "/" . self::normalizeRelativePath($this->cdata);
+                    $log->write(__METHOD__ . ': Mode is COPY, tmpFilename set to: ' . $this->tmpFilename);
                 } // begin-patch fm
                 elseif ($this->mode == ilFileXMLParser::$CONTENT_REST) {
+                    $log->write(__METHOD__ . ': Mode is REST');
                     $storage = new ilRestFileStorage();
                     $this->tmpFilename = $storage->getStoredFilePath(self::normalizeRelativePath($this->cdata));
+                    $log->write(__METHOD__ . ': REST storage tmpFilename: ' . $this->tmpFilename);
                     if (!$this->fastBase64Decode($this->tmpFilename, $baseDecodedFilename)) {
+                        $log->write(__METHOD__ . ': Base64-Decoding failed for REST mode');
                         throw new ilFileException("Base64-Decoding failed", ilFileException::$DECOMPRESSION_FAILED);
                     }
                     $this->tmpFilename = $baseDecodedFilename;
+                    $log->write(__METHOD__ . ': REST mode, tmpFilename after decode: ' . $this->tmpFilename);
                 } // end-patch fm
-                else {
+                else { 
+                    $log->write(__METHOD__ . ': Mode is not COPY or REST, decoding base64');
                     if (!$this->fastBase64Decode($this->tmpFilename, $baseDecodedFilename)) {
+                        $log->write(__METHOD__ . ': Base64-Decoding failed');
                         throw new ilFileException("Base64-Decoding failed", ilFileException::$DECOMPRESSION_FAILED);
                     }
                     if ($this->mode == ilFileXMLParser::$CONTENT_GZ_COMPRESSED) {
+                        $log->write(__METHOD__ . ': Mode is GZ_COMPRESSED, gunzipping');
                         if (!$this->fastGunzip($baseDecodedFilename, $this->tmpFilename)) {
+                            $log->write(__METHOD__ . ': Gunzip failed');
                             throw new ilFileException(
                                 "Deflating with fastzunzip failed",
                                 ilFileException::$DECOMPRESSION_FAILED
                             );
                         }
                         unlink($baseDecodedFilename);
+                        $log->write(__METHOD__ . ': Gunzip successful, deleted baseDecodedFilename');
                     } elseif ($this->mode == ilFileXMLParser::$CONTENT_ZLIB_COMPRESSED) {
+                        $log->write(__METHOD__ . ': Mode is ZLIB_COMPRESSED, gunzipping');
                         if (!$this->fastGunzip($baseDecodedFilename, $this->tmpFilename)) {
+                            $log->write(__METHOD__ . ': Gunzip failed');
                             throw new ilFileException(
                                 "Deflating with fastDecompress failed",
                                 ilFileException::$DECOMPRESSION_FAILED
                             );
                         }
                         unlink($baseDecodedFilename);
+                        $log->write(__METHOD__ . ': Gunzip successful, deleted baseDecodedFilename');
                     } else {
                         $this->tmpFilename = $baseDecodedFilename;
+                        $log->write(__METHOD__ . ': Mode is NOT compressed, tmpFilename set to baseDecodedFilename');
                     }
                 }
-
-                //$this->content = $content;
-                // see #17211
 
                 if ($this->version == $this->file->getVersion()) {
+                    $log->write(__METHOD__ . ': Version matches file version: ' . $this->version);
                     if (is_file($this->tmpFilename)) {
-                        $this->file->setFileSize(filesize($this->tmpFilename)); // strlen($this->content));
+                        $size = filesize($this->tmpFilename);
+                        $log->write(__METHOD__ . ': Setting file size to ' . $size);
+                        $this->file->setFileSize($size);
                     }
 
-                    // if no file type is given => lookup mime type
                     if (!$this->file->getFileType()) {
-                        global $DIC;
+                        $log->write(__METHOD__ . ': File type not set, detecting mime type for ' . $this->tmpFilename);
                         $this->file->setFileType(MimeType::getMimeType($this->tmpFilename));
                     }
+                } else {
+                    $log->write(__METHOD__ . ': Version does not match file version: ' . $this->version . ' != ' . $this->file->getVersion());
                 }
 
+                $log->write(__METHOD__ . ': Adding version info: version=' . $this->version . ', max_version=' . $this->max_version . ', tmpFilename=' . $this->tmpFilename . ', date=' . $this->date . ', usr_id=' . $this->usr_id . ', action=' . $this->action);
                 $this->versions[] = [
                     "version" => $this->version,
                     "max_version" => $this->max_version,
@@ -308,6 +335,7 @@ class ilFileXMLParser extends ilSaxParser
         }
 
         $this->cdata = '';
+        $log->write(__METHOD__ . ': cdata reset');
     }
 
     /**
